@@ -11,5 +11,12 @@ and for a IPv6 address, I used ndp (neighbor discovery) protocol related functio
 
 
 # dependency
-1. pcap4j. 
+1. pcap4j 1.7.x
 2. libpcap.
+
+# how to build
+## Build mac-address-detector-*.jar
+1. gradle build  (no dep jars included)
+2. gradle fatjar (recommended, dep jars included)
+
+

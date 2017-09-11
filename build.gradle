@@ -24,7 +24,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
 buildscript {
     ext {
         MODULE                      = "mac-address-detector"
-        MAVEN_GROUP_ID              = "mac-address-detector"
+        MAVEN_GROUP_ID              = "com.logicmonitor.macaddressdetector"
         MAVEN_ARTIFACT_ID           = "mac-address-detector"
         MAVEN_VERSION               = "0.1"
     }
@@ -114,6 +114,7 @@ jar {
     manifest = project.manifest {
         from sharedManifest
     }
+    archiveName = MAVEN_ARTIFACT_ID + '-' + MAVEN_VERSION + ".jar"
 }
 
 defaultTasks 'clean','test','jar'
@@ -137,30 +138,24 @@ test {
     reports.html.destination = file("$buildDir/test-reports")
 }
 
+
+
+// build jar
+task fatjar(type: Jar) {
+    baseName = MAVEN_ARTIFACT_ID + '-all-' + MAVEN_VERSION
+
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+    // add this to avoid the error -java.lang.SecurityException: Invalid signature file digest for Manifest main attributes
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
+}
+
 task upload {
     dependsOn = ['clean','uploadArchives']
     uploadArchives.mustRunAfter clean
 }
 
-//--------------------------------- Inactive Tasks ---------------------------------
 
-/* Generate IDEA project files automatically, includes: *.ipr,  *.iml,  *.iws
-*  Usage: gradle idea
-*/
-
-
-/* Clean IDEA project files automatically, includes: *.ipr,  *.iml,  *.iws
-*  Usage: gradle cleanIdea idea
-*/
-
-/* Apply jetty plugin, it will deploy war into container
-*  Usage: gradle jettyRunWar
-*/
-
-
-/* Generate standard layout for Java project
-*  Usage: gradle createJavaProject
-*/
 task createJavaProject << {
     sourceSets*.java.srcDirs*.each { it.mkdirs() }
     sourceSets*.resources.srcDirs*.each { it.mkdirs()}
