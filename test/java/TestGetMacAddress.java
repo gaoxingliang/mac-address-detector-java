@@ -17,18 +17,18 @@
 ////        byte[] ipInBytes = inet6Address.getAddress();
 ////        byte[] broadcaseIpAddress = new byte[ipInBytes.length];
 ////
-////        System.arraycopy(MacAddressHelper.getINSTANCE()._IPv6_BROADCAST_IPADDRESS_PREFIX, 0, broadcaseIpAddress, 0, MacAddressHelper
+////        System.arraycopy(com.logicmonitor.macaddress.detector.MacAddressHelper.getINSTANCE()._IPv6_BROADCAST_IPADDRESS_PREFIX, 0, broadcaseIpAddress, 0, com.logicmonitor.macaddress.detector.MacAddressHelper
 ////                ._INSTANCE._IPv6_BROADCAST_IPADDRESS_PREFIX.length);
-////        System.arraycopy(ipInBytes, ipInBytes.length - 3, broadcaseIpAddress, MacAddressHelper._INSTANCE._IPv6_BROADCAST_IPADDRESS_PREFIX
+////        System.arraycopy(ipInBytes, ipInBytes.length - 3, broadcaseIpAddress, com.logicmonitor.macaddress.detector.MacAddressHelper._INSTANCE._IPv6_BROADCAST_IPADDRESS_PREFIX
 ////                .length - 3, 3);
 ////
 ////        System.out.println(Inet6Address.getByAddress(broadcaseIpAddress));
 ////
-////        System.out.println(MacAddressHelper._INSTANCE._getBroadcastMacAddress4IPv6(inet6Address));
+////        System.out.println(com.logicmonitor.macaddress.detector.MacAddressHelper._INSTANCE._getBroadcastMacAddress4IPv6(inet6Address));
 ////
 ////        //System.exit(1);
 //
-//        List<PcapNetworkInterface> _local = MacAddressHelper.getInstance().getLocalInterfaces();
+//        List<PcapNetworkInterface> _local = com.logicmonitor.macaddress.detector.MacAddressHelper.getInstance().getLocalInterfaces();
 //        _local.forEach(l -> System.out.println(l));
 //
 //        String[] testIps = {"127.0.0.1", "10.130.11.155" , "192.168.170.149", "10.0.0.1", "10.130.11.57", "10.130.11.50"};
@@ -37,16 +37,16 @@
 //        }
 //        for (String testIp : testIps) {
 //            long start = System.currentTimeMillis();
-//            PcapNetworkInterface i = MacAddressHelper.getInstance().
+//            PcapNetworkInterface i = com.logicmonitor.macaddress.detector.MacAddressHelper.getInstance().
 //                    _selectSuitableNetworkInterface(InetAddress.getByName(testIp))._selectedNetworkInterface;
 //            System.out.println("Matched " + testIp + " is " + i);
 //
-//            MacAddress address = MacAddressHelper.getInstance().getMacAddress(InetAddress.getByName(testIp));
+//            MacAddress address = com.logicmonitor.macaddress.detector.MacAddressHelper.getInstance().getMacAddress(InetAddress.getByName(testIp));
 //            System.out.println(String.format("Related mac address for ip %s is %s costTime(ms)=%d", testIp, address, System
 //                    .currentTimeMillis() - start));
 //
 //        }
 //
-//        MacAddressHelper._INSTANCE.shutdown();
+//        com.logicmonitor.macaddress.detector.MacAddressHelper._INSTANCE.shutdown();
 //    }
 //}
