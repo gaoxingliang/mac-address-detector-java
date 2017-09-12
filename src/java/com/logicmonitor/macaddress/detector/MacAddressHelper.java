@@ -86,7 +86,21 @@ public class MacAddressHelper {
                 byte [] mac = nwInterface.getHardwareAddress();
                 Enumeration<InetAddress> addresses = nwInterface.getInetAddresses();
                 while (addresses.hasMoreElements()) {
-                    _localAddresse2MacAddress.put(addresses.nextElement(), mac == null ? null : MacAddress.getByAddress(mac));
+                    InetAddress currentIp = addresses.nextElement();
+                    if (mac == null) {
+                        System.out.println("Can't find mac address for local ip " + currentIp);
+                        _localAddresse2MacAddress.put(currentIp, null);
+                    }
+                    else {
+                        if (mac.length != MacAddress.SIZE_IN_BYTES) {
+                            _localAddresse2MacAddress.put(currentIp, null);
+                            System.out.println(String.format("Found invalid mac address, ip=%s, address=%s,  ", currentIp, ByteArrays.toHexString(mac, ":")));
+                        }
+                        else {
+                            _localAddresse2MacAddress.put(currentIp, MacAddress.getByAddress(mac));
+                        }
+                    }
+
                 }
             }
             _initted = true;

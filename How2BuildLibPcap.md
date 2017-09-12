@@ -11,8 +11,7 @@ Then the file is <b>libpcap.so.1.8.1</b> under same directory<br>
 
 #Windows
 For windows, I used the <a href="https://nmap.org/npcap/">npcap</a> to do the lower layer packet sending and process.
-https://sourceforge.net/projects/winpcap413-176/?source=typ_redirect
-
+Download those libs from https://nmap.org/npcap/  sdk files.
 
 #MacOS
 `wget http://www.tcpdump.org/release/libpcap-1.8.1.tar.gz`<br>
