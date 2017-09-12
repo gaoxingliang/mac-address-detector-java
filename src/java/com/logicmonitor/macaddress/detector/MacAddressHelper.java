@@ -27,6 +27,7 @@ import org.pcap4j.packet.namednumber.IpVersion;
 import org.pcap4j.util.ByteArrays;
 import org.pcap4j.util.MacAddress;
 
+import java.io.File;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -445,5 +446,51 @@ public class MacAddressHelper {
         return MacAddress.getByAddress(broadcastMacAddress);
     }
 
+
+    /**
+     * @param args  the remote device ip lists split by comma
+     */
+    public static void main(String[] args) {
+
+        // check libpcap file really exists
+        String libpcapKeyName = "org.pcap4j.core.pcapLibName";
+        String libpcapSet = System.getProperty(libpcapKeyName);
+        if (libpcapSet == null || libpcapSet.isEmpty()) {
+            System.out.println(String.format("no libpcap property set, try with -D%s=YourLibPcapFile", libpcapKeyName));
+            return;
+        }
+        File libpcapFile = new File(libpcapSet);
+        if (!(libpcapFile.exists() && libpcapFile.isFile())) {
+            System.out.println("libpcap file not exists " + libpcapFile.getAbsolutePath());
+            return;
+        }
+        System.out.println("Use libpcap file - " + libpcapFile.getAbsolutePath());
+        System.out.println();
+        // list all interfaces
+        List<PcapNetworkInterface> localInterfaces = MacAddressHelper.getInstance().getLocalInterfaces();
+        System.out.println("List local interfaces");
+        for (PcapNetworkInterface localIntf : localInterfaces) {
+            System.out.println("\t" + localIntf);
+        }
+
+        if (args == null || args.length == 0) {
+            System.out.println("No remote device ips provided. try with arguments IP1,IP2 ....");
+            return;
+        }
+        for (String ip : args) {
+            System.out.println("Start find mac for ip - " + ip);
+            try {
+                MacAddress mac = MacAddressHelper.getInstance().getMacAddress(InetAddress.getByName(ip));
+                System.out.println("The mac is - " + mac);
+            }
+            catch (UnknownHostException e) {
+                System.out.println("Unknown host " + ip);
+                e.printStackTrace();
+            }
+        }
+
+        MacAddressHelper.getInstance().shutdown();
+
+    }
 
 }
