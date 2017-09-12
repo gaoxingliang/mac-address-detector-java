@@ -480,6 +480,7 @@ public class MacAddressHelper {
         }
         System.out.println("Use libpcap file - " + libpcapFile.getAbsolutePath());
         System.out.println();
+        System.out.println("Version - " + Pcaps.libVersion());
         // list all interfaces
         List<PcapNetworkInterface> localInterfaces = MacAddressHelper.getInstance().getLocalInterfaces();
         System.out.println("List local interfaces");

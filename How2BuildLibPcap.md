@@ -7,7 +7,7 @@ I also uploaded the latest 1.8.1 release files under directory <b>libpcapfiles</
 `yum install flex bison`<br>
 `./configure`<br>
 `make`<br>
-Then the file is <b>libpcap.so.1.8.1</b> under same directory<br>
+Then the file is <b>libpcap.so.1.8.1</b> under same directory, rename this to libpcap.so or libpcap64.so<br>
 
 #Windows
 For windows, I used the <a href="https://nmap.org/npcap/">npcap</a> to do the lower layer packet sending and process.

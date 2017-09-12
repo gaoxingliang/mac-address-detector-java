@@ -21,7 +21,7 @@ and for a IPv6 address, I used ndp (neighbor discovery) protocol related functio
 
 ## run on linux
 ``
-java -Dorg.pcap4j.core.pcapLibName=libpcap.so.1.8.1 -cp mac-address-detector-all-0.1.jar com.logicmonitor.macaddress.detector.MacAddressHelper 192.168.170.149
+java -Dorg.pcap4j.core.pcapLibName=libpcap.so -cp .:mac-address-detector-all-0.1.jar com.logicmonitor.macaddress.detector.MacAddressHelper 192.168.170.149
 ``
 
 ## run on windows
