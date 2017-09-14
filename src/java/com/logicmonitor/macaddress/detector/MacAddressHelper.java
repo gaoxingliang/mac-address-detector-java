@@ -32,30 +32,41 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Detect a mac address
- * Notice this required a libpcap. you can refer to
- *      The page - https://github.com/kaitoy/pcap4j
+ * The main logic is:
+ * 0) set the filter
+ * 1) compose the packet
+ * 2) start the receive thread task
+ * 3) send tha packet
+ * 4) wait response task result or timeout happen
+ * <p>
  * Created by edward.gao on 10/09/2017.
  */
 public class MacAddressHelper {
 
+    private static final String _KEY_READTIMEOUT_IN_MILLS = "macaddress.readTimeout.mills";
+    private static final String _KEY_RECEIVETIMEOUT_IN_MILLS = "macaddress.receiveTimeout.mills";
+    private static final String _KEY_SEND_RECEIVE_THREADS = "macaddress.sendreceive.threads";
+    private static final String _KEY_WAIT_RECEIVE_START_IN_MILLS = "macaddress.waitStartedRunning.mills";
+
     private List<PcapNetworkInterface> _localPcapNetworkInterfaces = null;
     private Map<InetAddress, MacAddress> _localAddresse2MacAddress = null;
-    private static final MacAddressHelper _INSTANCE = new MacAddressHelper();
     private byte[] _IPv6_BROADCAST_IPADDRESS_PREFIX = null;
     private byte[] _IPv6_BROADCAST_MACADDRESS_PREFIX = null;
 
@@ -63,13 +74,37 @@ public class MacAddressHelper {
 
     private Throwable _initError = null;
 
-    private int _readTimeoutInSeconds = 3;
-    private int _waitResponseTimeoutPerRequest = 3; // this should be quick enough under same switch
+    /**
+     * NOTICE, the pcap will block for those time even when the data returned....
+     */
+    private int _readTimeoutInMillSeconds = 100; // 100 ms for reading a response from the packet
+    private int _waitResponseTimeoutInMillSeconds = 2000; // 2 second, this should be quick enough under same switch
+
+    // wait till the receive task started running, this should not be too large
+    private int _waitReceiveTaskStartRunningInSeconds = 5000;
+
     private ScheduledExecutorService _executor; // send and receive thread pool
-    private int _threadCount = 5; //  send and receive thread pool count
+    private int _threadCount = 10; //  send and receive thread pool count
     private int _snapLen = 65535;
     private int _sendPacketCount = 1;
 
+
+    static {
+        // for linux, only required libpcap, so you see the filename is with version
+        // for windows, we need Packet.dll and wpcap.dll, and wpcap required Packet.dll so the filename is WITHOUT version
+        String pcapLibKey = "org.pcap4j.core.pcapLibName";
+        String packetDllKey = "org.pcap4j.core.packetLibName";
+//        if (Environment.isLinux()) {
+//            System.setProperty(pcapLibKey, Paths.get(".", "lib", Environment.is64BitOS() ? "libpcap64.so" : "libpcap.so")
+//                    .toString());
+//        }
+//        else {
+//            System.setProperty(packetDllKey, Paths.get(Environment.root, "lib", "Packet.dll").toString());
+//            System.setProperty(pcapLibKey, Paths.get(Environment.root, "lib", "wpcap.dll").toString());
+//        }
+        System.out.println(String.format("Pcap related conf set %s=%s, (for windows) %s=%s", pcapLibKey, System.getProperty(pcapLibKey),
+                packetDllKey, System.getProperty(packetDllKey)));
+    }
 
     private MacAddressHelper() {
         try {
@@ -83,18 +118,21 @@ public class MacAddressHelper {
             Enumeration<NetworkInterface> localNetworkInterfaces = NetworkInterface.getNetworkInterfaces();
             while (localNetworkInterfaces.hasMoreElements()) {
                 NetworkInterface nwInterface = localNetworkInterfaces.nextElement();
-                byte [] mac = nwInterface.getHardwareAddress();
+                byte[] mac = nwInterface.getHardwareAddress();
                 Enumeration<InetAddress> addresses = nwInterface.getInetAddresses();
                 while (addresses.hasMoreElements()) {
                     InetAddress currentIp = addresses.nextElement();
                     if (mac == null) {
-                        System.out.println("Can't find mac address for local ip " + currentIp);
+                        System.out.println("Can't find mac address for local ip=" + currentIp);
                         _localAddresse2MacAddress.put(currentIp, null);
                     }
                     else {
+                        // although jdk said, the returned value is a mac address, but actually this may fail on some local mac address
+                        // the length is NOT 6 bytes
                         if (mac.length != MacAddress.SIZE_IN_BYTES) {
                             _localAddresse2MacAddress.put(currentIp, null);
-                            System.out.println(String.format("Found invalid mac address, ip=%s, address=%s,  ", currentIp, ByteArrays.toHexString(mac, ":")));
+                            System.out.println(String.format("Found invalid mac address ip=%s,mac=%s", currentIp, ByteArrays.toHexString(mac,
+                                    ":")));
                         }
                         else {
                             _localAddresse2MacAddress.put(currentIp, MacAddress.getByAddress(mac));
@@ -103,22 +141,24 @@ public class MacAddressHelper {
 
                 }
             }
+            System.out.println(String.format("Mac Address helper init done localips=%d, threadPool=%d, readTimeout(ms)=%d, waitResponse(ms)" +
+                            "=%d, waitReceiveTaskStart(ms)=%d",
+                    _localAddresse2MacAddress.size(), _threadCount,
+                    _readTimeoutInMillSeconds, _waitResponseTimeoutInMillSeconds, _waitReceiveTaskStartRunningInSeconds));
             _initted = true;
         }
-        catch (PcapNativeException e) {
-            _initError = e;
-        }
-        catch (UnknownHostException e) {
-            _initError = e;
-        }
-        catch (SocketException e) {
+        catch (Throwable e) {
             _initError = e;
         }
     }
 
+    public static MacAddressHelper getInstance() {
+        return MacAddressHelperHolder._INSTANCE;
+    }
+
     public List<PcapNetworkInterface> getLocalInterfaces() {
         if (!_initted) {
-            throw new IllegalStateException("Fail to list all local networks", _initError);
+            throw new IllegalStateException("Fail to init component", _initError);
         }
         return _localPcapNetworkInterfaces;
     }
@@ -128,10 +168,10 @@ public class MacAddressHelper {
             throw new IllegalArgumentException("Address is null");
         }
         if (!_initted) {
-            throw new IllegalStateException("Fail to list all local networks", _initError);
+            throw new IllegalStateException("Fail to init component", _initError);
         }
         if (_localAddresse2MacAddress.containsKey(address)) {
-           return _localAddresse2MacAddress.get(address);
+            return _localAddresse2MacAddress.get(address);
         }
         try {
             return _getMacAddress(address);
@@ -142,19 +182,11 @@ public class MacAddressHelper {
         return null;
     }
 
-    public static MacAddressHelper getInstance() {
-        return _INSTANCE;
-    }
-
-    /**
-     * shutdown current helper instance
-     */
     public void shutdown() {
         if (_executor != null) {
             _executor.shutdown();
         }
     }
-
 
     /**
      * get the remote mac address for a ip v4 address
@@ -173,8 +205,6 @@ public class MacAddressHelper {
             throw new IllegalStateException("Can't find interface for address " + inetAddress);
         }
 
-        System.out.println("Selected interface is - " + intf._selectedNetworkInterface + " selectedIp is - " + intf._selectedIpAddress +
-                " target ip is -" + inetAddress);
 
         MacAddress localMacAddress = MacAddress.getByAddress(intf._selectedNetworkInterface.getLinkLayerAddresses().get(0).getAddress());
         InetAddress localIpAddress = intf._selectedIpAddress;
@@ -184,14 +214,15 @@ public class MacAddressHelper {
         final AtomicReference<MacAddress> remoteMacAddress = new AtomicReference<>();
         final boolean isIPv4Address = inetAddress instanceof Inet4Address;
         try {
+
             receiveHandle
                     = intf._selectedNetworkInterface.openLive(_snapLen, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS,
-                    _readTimeoutInSeconds);
+                    _readTimeoutInMillSeconds);
 
 
             String filter = isIPv4Address ? _getFilter4IPv4(inetAddress, localMacAddress, localIpAddress) :
                     _getFilter4IPv6((Inet6Address) inetAddress, localMacAddress, (Inet6Address) localIpAddress);
-            System.out.println("Filter is " + filter);
+            System.out.println("receive filter set filter=" + filter);
 
 
             receiveHandle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE);
@@ -199,9 +230,9 @@ public class MacAddressHelper {
 
             sendHandle
                     = intf._selectedNetworkInterface.openLive(_snapLen, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS,
-                    _readTimeoutInSeconds);
+                    _readTimeoutInMillSeconds);
             PacketListener listener = (packet) -> {
-                System.out.println("Receive packet - " + packet);
+                System.out.println("Packet received" + packet.toString());
                 if (isIPv4Address && packet.contains(ArpPacket.class)) {
                     ArpPacket arp = packet.get(ArpPacket.class);
                     if (arp.getHeader().getOperation().equals(ArpOperation.REPLY)) {
@@ -214,38 +245,56 @@ public class MacAddressHelper {
                 }
             };
 
-            CountDownLatch startRunningLatch = new CountDownLatch(1);
-            _executor.execute(new ReceiveTask(receiveHandle, listener, startRunningLatch));
-            // this should be really fast enough
-            startRunningLatch.await(_waitResponseTimeoutPerRequest, TimeUnit.SECONDS);
-            _executor.schedule(new CancelTask(receiveHandle), _waitResponseTimeoutPerRequest, TimeUnit.SECONDS);
+            CyclicBarrier cyclicBarrier = new CyclicBarrier(2);
+
+            ReceiveTask receiveTask = new ReceiveTask(receiveHandle, listener, cyclicBarrier);
+            Future receiveFuture = _executor.submit(receiveTask);
 
             EthernetPacket.Builder etherBuilder = isIPv4Address ? _getPacketBuilder4IPv4(inetAddress, localMacAddress, localIpAddress) :
                     _getPacketBuilder4IPv6((Inet6Address) inetAddress, localMacAddress, (Inet6Address) localIpAddress);
-
             Packet p = etherBuilder.build();
+            try {
+                cyclicBarrier.await(_waitReceiveTaskStartRunningInSeconds, TimeUnit.MILLISECONDS);
+            }
+            catch (BrokenBarrierException | TimeoutException e) {
+                e.printStackTrace();
+                return remoteMacAddress.get();
+            }
             sendHandle.sendPacket(p);
+            try {
+                receiveFuture.get(_waitResponseTimeoutInMillSeconds, TimeUnit.MILLISECONDS);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+            return remoteMacAddress.get();
         }
         finally {
             _closeHandle(receiveHandle);
             _closeHandle(sendHandle);
         }
-
-        return remoteMacAddress.get();
-
     }
 
     private String _getFilter4IPv4(InetAddress remoteAddress, MacAddress localMacAddress, InetAddress localIpAdress) {
         return String.format("arp and src host %s and dst host %s and ether dst %s",
-                remoteAddress.getHostName(),
-                localIpAdress.getHostName(),
+                remoteAddress.getHostAddress(),
+                localIpAdress.getHostAddress(),
                 Pcaps.toBpfString(localMacAddress));
     }
 
+    private String _removePercentInIPv6Address(String ipv6Address) {
+        int index = ipv6Address.indexOf("%");
+        if (index > 0) {
+            return ipv6Address.substring(0, index);
+        }
+        return ipv6Address;
+    }
+
+
     private String _getFilter4IPv6(Inet6Address remoteAddress, MacAddress localMacAddress, Inet6Address localIpAdress) {
         return String.format("icmp6 and src host %s and dst host %s and ether dst %s",
-                remoteAddress.getHostName(),
-                localIpAdress.getHostName(),
+                _removePercentInIPv6Address(remoteAddress.getHostAddress()),
+                _removePercentInIPv6Address(localIpAdress.getHostAddress()),
                 Pcaps.toBpfString(localMacAddress));
     }
 
@@ -327,17 +376,24 @@ public class MacAddressHelper {
 
 
     private void _closeHandle(PcapHandle handle) {
-        if (handle != null && handle.isOpen()) {
+        if (handle != null) {
+            try {
+                handle.breakLoop();
+            }
+            catch (Exception e) {
+            }
             try {
                 handle.close();
             }
             catch (Exception e) {
+
             }
         }
     }
 
     /**
      * select a most suitable network interface according to the address
+     *
      * @param address
      * @return
      */
@@ -368,47 +424,28 @@ public class MacAddressHelper {
 
         private final PcapHandle receiveHandle;
         private final PacketListener listener;
-        private final CountDownLatch startRunningLatch;
+        private final CyclicBarrier cyclicBarrier;
+        private String loggerComponent, loggerId;
 
-        public ReceiveTask(PcapHandle receiveHandle, PacketListener listener, CountDownLatch startRunningLatch) {
+        public ReceiveTask(PcapHandle receiveHandle, PacketListener listener, CyclicBarrier cyclicBarrier) {
             this.receiveHandle = receiveHandle;
             this.listener = listener;
-            this.startRunningLatch = startRunningLatch;
+            this.cyclicBarrier = cyclicBarrier;
+        }
+
+        public void setLogger(String loggerComponent, String loggerId) {
+            this.loggerComponent = loggerComponent;
+            this.loggerId = loggerId;
         }
 
         @Override
         public void run() {
-            startRunningLatch.countDown();
             try {
+                cyclicBarrier.await();
                 receiveHandle.loop(_sendPacketCount, listener);
             }
-            catch (PcapNativeException e) {
+            catch (Exception e) {
                 e.printStackTrace();
-            }
-            catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            catch (NotOpenException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private class CancelTask implements Runnable {
-        private PcapHandle handle;
-
-        public CancelTask(PcapHandle handle) {
-            this.handle = handle;
-        }
-
-        @Override
-        public void run() {
-            if (handle != null && handle.isOpen()) {
-                try {
-                    handle.breakLoop();
-                }
-                catch (NotOpenException e) {
-                }
             }
         }
     }
@@ -460,9 +497,22 @@ public class MacAddressHelper {
         return MacAddress.getByAddress(broadcastMacAddress);
     }
 
+    private static class MacAddressHelperHolder {
+        // to make sure this is really lazy init
+        // and the static block in the MacAddressHelper will run before this construction
+        private static MacAddressHelper _INSTANCE = new MacAddressHelper();
+
+        private MacAddressHelperHolder() {
+        }
+
+        public static final MacAddressHelper get() {
+            return _INSTANCE;
+        }
+    }
+
 
     /**
-     * @param args  the remote device ip lists split by comma
+     * @param args the remote device ip lists split by comma
      */
     public static void main(String[] args) {
 
