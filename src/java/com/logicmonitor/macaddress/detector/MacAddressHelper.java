@@ -339,7 +339,7 @@ public class MacAddressHelper {
                 .linkLayerAddress(localMacAddress.getAddress())
                 .correctLengthAtBuild(true)
                 .build();
-        List<IcmpV6CommonPacket.IpV6NeighborDiscoveryOption> options = new ArrayList<IcmpV6CommonPacket.IpV6NeighborDiscoveryOption>();
+        List<IcmpV6CommonPacket.IpV6NeighborDiscoveryOption> options = new ArrayList<>();
         options.add(option);
         v6Builder.options(options);
 
