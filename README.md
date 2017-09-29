@@ -20,11 +20,15 @@ and for a IPv6 address, I used ndp (neighbor discovery) protocol related functio
 2. gradle fatjar (recommended, dep jars included)
 
 ## Run on linux
+on linux, you can load the libpcap directly without install anything
+
 ``
-java -Dorg.pcap4j.core.pcapLibName=libpcap.so -cp .:mac-address-detector-all-0.1.jar com.logicmonitor.macaddress.detector.MacAddressHelper 192.168.170.149
+java -Dorg.pcap4j.core.pcapLibName=libpcap.so -cp .:mac-address-detector-all-0.1.jar com.logicmonitor.macaddress.detector.Test 192.168.170.149
 ``
 
 ## Run on windows
+On windows, the npcap is required to be installed. (no reboot required)
+
 ``
-java -Dorg.pcap4j.core.pcapLibName=wpcap.dll -Dorg.pcap4j.core.packetLibName=Packet.dll -cp mac-address-detector-all-0.1.jar com.logicmonitor.macaddress.detector.MacAddressHelper 192.168.170.149
+java -Dorg.pcap4j.core.pcapLibName=wpcap.dll -Dorg.pcap4j.core.packetLibName=Packet.dll -cp .;mac-address-detector-all-0.1.jar com.logicmonitor.macaddress.detector.Test 192.168.170.149
 ``

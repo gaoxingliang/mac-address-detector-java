@@ -102,8 +102,8 @@ public class MacAddressHelper {
 //            System.setProperty(packetDllKey, Paths.get(Environment.root, "lib", "Packet.dll").toString());
 //            System.setProperty(pcapLibKey, Paths.get(Environment.root, "lib", "wpcap.dll").toString());
 //        }
-        System.out.println(String.format("Pcap related conf set %s=%s, (for windows) %s=%s", pcapLibKey, System.getProperty(pcapLibKey),
-                packetDllKey, System.getProperty(packetDllKey)));
+//        System.out.println(String.format("Pcap related conf set %s=%s, (for windows) %s=%s", pcapLibKey, System.getProperty(pcapLibKey),
+//                packetDllKey, System.getProperty(packetDllKey)));
     }
 
     private MacAddressHelper() {
@@ -398,8 +398,7 @@ public class MacAddressHelper {
      * @return
      */
     private SelectedInterface _selectSuitableNetworkInterface(InetAddress address) {
-        int similiarBits = Integer.MIN_VALUE;
-        PcapNetworkInterface suitableInterface = null;
+        int similiarBytes = Integer.MIN_VALUE;
         SelectedInterface selectedInterface = new SelectedInterface();
 
         byte[] inputIpInBytes = address.getAddress();
@@ -407,17 +406,26 @@ public class MacAddressHelper {
             List<PcapAddress> addresses = currentInterface.getAddresses();
             if (addresses != null) {
                 for (PcapAddress ipAddress : addresses) {
+                    // make sure the address should be same type, all ipv4 or all ipv6
+                    if (!_isSameTypeAddress(address, ipAddress.getAddress())) {
+                        continue;
+                    }
                     byte[] ipInBytes = ipAddress.getAddress().getAddress();
                     int currentSimiliarBytes = _similarBytes(inputIpInBytes, ipInBytes);
-                    if (currentSimiliarBytes > similiarBits) {
+                    if (currentSimiliarBytes > similiarBytes) {
                         selectedInterface._selectedNetworkInterface = currentInterface;
                         selectedInterface._selectedIpAddress = ipAddress.getAddress();
-                        similiarBits = currentSimiliarBytes;
+                        similiarBytes = currentSimiliarBytes;
                     }
                 }
             }
         }
         return selectedInterface;
+    }
+
+    private boolean _isSameTypeAddress(InetAddress address1, InetAddress address2) {
+        return (address1 instanceof Inet6Address && address2 instanceof Inet6Address)
+                || (address1 instanceof Inet4Address && address2 instanceof Inet4Address);
     }
 
     private class ReceiveTask implements Runnable {
