@@ -82,10 +82,10 @@ dependencies {
 
 
     // https://mvnrepository.com/artifact/org.pcap4j/pcap4j-core
-    compile group: 'org.pcap4j', name: 'pcap4j-core', version: '1.7.1'
+    compile group: 'org.pcap4j', name: 'pcap4j-core', version: '1.7.3'
 
     // https://mvnrepository.com/artifact/org.pcap4j/pcap4j-packetfactory-static
-    compile group: 'org.pcap4j', name: 'pcap4j-packetfactory-static', version: '1.7.1'
+    compile group: 'org.pcap4j', name: 'pcap4j-packetfactory-static', version: '1.7.3'
 
     compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.25'
 

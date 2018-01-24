@@ -2,16 +2,25 @@ import org.pcap4j.core.*;
 import org.pcap4j.packet.Packet;
 import org.pcap4j.util.NifSelector;
 
+import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * dump packets
+ * Copy from pcap4j examples
+ * The filter syntax is - https://biot.com/capstats/bpf.html
+ *
+ * When it's working for dns, you may got an IllegalArgumentException,
+ *      Which fixed in here: https://github.com/kaitoy/pcap4j/issues/123
+ *
  */
 public class PacketDump {
 
-    private static final String COUNT_KEY= "count";
+    private static final String COUNT_KEY = "count";
     private static final int COUNT
-            = Integer.getInteger(COUNT_KEY, 5);
+            = Integer.getInteger(COUNT_KEY, 1000);
 
     private static final String READ_TIMEOUT_KEY = "readTimeout";
     private static final int READ_TIMEOUT
@@ -26,14 +35,27 @@ public class PacketDump {
             = Boolean.getBoolean(TIMESTAMP_PRECISION_NANO_KEY);
 
     private static final String PCAP_FILE_KEY = "pcapFile";
+    private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH_mm_ss");
+
     private static final String PCAP_FILE
-            = System.getProperty(PCAP_FILE_KEY, "Dump.pcap");
+            = System.getProperty(PCAP_FILE_KEY, "Dump" + sdf.format(new Date()) + ".pcap");
+
 
     private PacketDump() {
     }
 
-    public static void main(String[] args) throws PcapNativeException, NotOpenException {
+    public static void main(String[] args) throws PcapNativeException, NotOpenException, IOException {
         String filter = args.length != 0 ? args[0] : "";
+        if (filter.isEmpty()) {
+            System.out.println("You Should set the filter expression as the first argument");
+            System.out.println("The filter expression is same with the capture filter in the Wireshark or tcpdump");
+            System.out.println("You can set other attributes as -D:");
+            System.out.println(String.format("\t%-20s -> %s", COUNT_KEY, "Packets numbers"));
+            System.out.println(String.format("\t%-20s -> %s", READ_TIMEOUT_KEY, "Read timeout in ms"));
+            System.out.println(String.format("\t%-20s -> %s", SNAPLEN_KEY, "SnapLen"));
+            return;
+        }
+
 
         System.out.println(COUNT_KEY + ": " + COUNT);
         System.out.println(READ_TIMEOUT_KEY + ": " + READ_TIMEOUT);
@@ -51,6 +73,7 @@ public class PacketDump {
         }
 
         if (nif == null) {
+            System.out.println("No interfaces found, make sure your set the correct libpcap files");
             return;
         }
 
@@ -89,6 +112,14 @@ public class PacketDump {
 
         dumper.close();
         handle.close();
+
+        File dumpfile = new File(PCAP_FILE);
+        if (dumpfile.exists()) {
+            System.out.println("Output file is - " + dumpfile.getCanonicalPath());
+        }
+        else {
+            System.out.println("Dump file not existed - " + dumpfile.getCanonicalPath());
+        }
     }
 
 }

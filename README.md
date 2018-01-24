@@ -32,3 +32,8 @@ On windows, the npcap is required to be installed. (no reboot required)
 ``
 java -Dorg.pcap4j.core.pcapLibName=wpcap.dll -Dorg.pcap4j.core.packetLibName=Packet.dll -cp .;mac-address-detector-all-0.1.jar com.logicmonitor.macaddress.detector.Test 192.168.170.149
 ``
+
+
+#Updates
+Add a func to do packet dump by using pcap4j.
+After build the jar, call the main class PacketDump.
