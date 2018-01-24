@@ -1,4 +1,3 @@
-package com.logicmonitor.macaddress.detector;
 
 import org.pcap4j.util.MacAddress;
 
