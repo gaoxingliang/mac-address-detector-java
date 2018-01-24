@@ -14,10 +14,9 @@ import java.util.List;
  * dump packets
  * Copy from pcap4j examples
  * The filter syntax is - https://biot.com/capstats/bpf.html
- *
+ * <p>
  * When it's working for dns, you may got an IllegalArgumentException,
- *      Which fixed in here: https://github.com/kaitoy/pcap4j/issues/123
- *
+ * Which fixed in here: https://github.com/kaitoy/pcap4j/issues/123
  */
 public class PacketDump {
 
@@ -102,6 +101,19 @@ public class PacketDump {
                 BpfProgram.BpfCompileMode.OPTIMIZE
         );
 
+        // add one shutdownhook to print the output file
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            File dumpfile = new File(PCAP_FILE);
+            try {
+                if (dumpfile.exists()) {
+                    System.out.println("Output file is - " + dumpfile.getCanonicalPath());
+                }
+                else {
+                    System.out.println("Dump file not existed - " + dumpfile.getCanonicalPath());
+                }
+            } catch (IOException e) {}
+        }));
+
         int num = 0;
         PcapDumper dumper = handle.dumpOpen(PCAP_FILE);
         while (true) {
@@ -121,13 +133,6 @@ public class PacketDump {
         dumper.close();
         handle.close();
 
-        File dumpfile = new File(PCAP_FILE);
-        if (dumpfile.exists()) {
-            System.out.println("Output file is - " + dumpfile.getCanonicalPath());
-        }
-        else {
-            System.out.println("Dump file not existed - " + dumpfile.getCanonicalPath());
-        }
     }
 
 
@@ -135,7 +140,8 @@ public class PacketDump {
         List<PcapNetworkInterface> allDevs = null;
         try {
             allDevs = Pcaps.findAllDevs();
-        } catch (PcapNativeException e) {
+        }
+        catch (PcapNativeException e) {
             throw new IOException(e.getMessage());
         }
 
@@ -144,7 +150,7 @@ public class PacketDump {
         }
         StringBuilder sb = new StringBuilder(200);
         int nifIdx = 0;
-        for (PcapNetworkInterface nif: allDevs) {
+        for (PcapNetworkInterface nif : allDevs) {
             sb.append("NIF[").append(nifIdx).append("]: ")
                     .append(nif.getName()).append(LINE_SEPARATOR);
 
@@ -153,12 +159,12 @@ public class PacketDump {
                         .append(nif.getDescription()).append(LINE_SEPARATOR);
             }
 
-            for (LinkLayerAddress addr: nif.getLinkLayerAddresses()) {
+            for (LinkLayerAddress addr : nif.getLinkLayerAddresses()) {
                 sb.append("      : link layer address: ")
                         .append(addr).append(LINE_SEPARATOR);
             }
 
-            for (PcapAddress addr: nif.getAddresses()) {
+            for (PcapAddress addr : nif.getAddresses()) {
                 sb.append("      : address: ")
                         .append(addr.getAddress()).append(LINE_SEPARATOR);
             }
@@ -188,7 +194,8 @@ public class PacketDump {
                 else {
                     break;
                 }
-            } catch (NumberFormatException e) {
+            }
+            catch (NumberFormatException e) {
                 write("Invalid input." + LINE_SEPARATOR);
                 continue;
             }
@@ -200,7 +207,6 @@ public class PacketDump {
 
 
     /**
-     *
      * @param msg msg
      * @throws IOException if fails to write.
      */
@@ -209,7 +215,6 @@ public class PacketDump {
     }
 
     /**
-     *
      * @return string
      * @throws IOException if fails to read.
      */
