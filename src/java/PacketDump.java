@@ -1,11 +1,14 @@
 import org.pcap4j.core.*;
 import org.pcap4j.packet.Packet;
-import org.pcap4j.util.NifSelector;
+import org.pcap4j.util.LinkLayerAddress;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 /**
  * dump packets
@@ -17,6 +20,8 @@ import java.util.Date;
  *
  */
 public class PacketDump {
+
+    private static final String LINE_SEPARATOR = "\n";
 
     private static final String COUNT_KEY = "count";
     private static final int COUNT
@@ -63,11 +68,14 @@ public class PacketDump {
         System.out.println(TIMESTAMP_PRECISION_NANO_KEY + ": " + TIMESTAMP_PRECISION_NANO);
         System.out.println("\n");
 
+
+        // select the nifs
+
         PcapNetworkInterface nif;
         try {
-            nif = new NifSelector().selectNetworkInterface();
+            nif = _selectNif();
         }
-        catch (IOException e) {
+        catch (Exception e) {
             e.printStackTrace();
             return;
         }
@@ -120,6 +128,95 @@ public class PacketDump {
         else {
             System.out.println("Dump file not existed - " + dumpfile.getCanonicalPath());
         }
+    }
+
+
+    private static PcapNetworkInterface _selectNif() throws Exception {
+        List<PcapNetworkInterface> allDevs = null;
+        try {
+            allDevs = Pcaps.findAllDevs();
+        } catch (PcapNativeException e) {
+            throw new IOException(e.getMessage());
+        }
+
+        if (allDevs == null || allDevs.isEmpty()) {
+            throw new IOException("No NIF found, is the libpcap successfully set/installed?");
+        }
+        StringBuilder sb = new StringBuilder(200);
+        int nifIdx = 0;
+        for (PcapNetworkInterface nif: allDevs) {
+            sb.append("NIF[").append(nifIdx).append("]: ")
+                    .append(nif.getName()).append(LINE_SEPARATOR);
+
+            if (nif.getDescription() != null) {
+                sb.append("      : description: ")
+                        .append(nif.getDescription()).append(LINE_SEPARATOR);
+            }
+
+            for (LinkLayerAddress addr: nif.getLinkLayerAddresses()) {
+                sb.append("      : link layer address: ")
+                        .append(addr).append(LINE_SEPARATOR);
+            }
+
+            for (PcapAddress addr: nif.getAddresses()) {
+                sb.append("      : address: ")
+                        .append(addr.getAddress()).append(LINE_SEPARATOR);
+            }
+            sb.append(LINE_SEPARATOR).append(LINE_SEPARATOR);
+            nifIdx++;
+        }
+        sb.append(LINE_SEPARATOR);
+        System.out.println(sb.toString());
+
+        while (true) {
+            write(String.format("Select a device number ( 0 - %d) to capture packets, or enter 'q' to quit > ", allDevs.size() - 1));
+            String input;
+            if ((input = read()) == null) {
+                continue;
+            }
+
+            if (input.equals("q")) {
+                return null;
+            }
+
+            try {
+                nifIdx = Integer.parseInt(input);
+                if (nifIdx < 0 || nifIdx >= allDevs.size()) {
+                    write("Invalid input." + LINE_SEPARATOR);
+                    continue;
+                }
+                else {
+                    break;
+                }
+            } catch (NumberFormatException e) {
+                write("Invalid input." + LINE_SEPARATOR);
+                continue;
+            }
+        }
+
+        return allDevs.get(nifIdx);
+
+    }
+
+
+    /**
+     *
+     * @param msg msg
+     * @throws IOException if fails to write.
+     */
+    protected static void write(String msg) throws IOException {
+        System.out.print(msg);
+    }
+
+    /**
+     *
+     * @return string
+     * @throws IOException if fails to read.
+     */
+    protected static String read() throws IOException {
+        BufferedReader reader
+                = new BufferedReader(new InputStreamReader(System.in));
+        return reader.readLine();
     }
 
 }

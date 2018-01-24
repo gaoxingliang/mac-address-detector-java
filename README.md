@@ -34,6 +34,9 @@ java -Dorg.pcap4j.core.pcapLibName=wpcap.dll -Dorg.pcap4j.core.packetLibName=Pac
 ``
 
 
-#Updates 01-24-2018
+# Updates 01-24-2018
 Add a func to do packet dump by using pcap4j.
 After build the jar, call the main class PacketDump.
+``
+java -Dorg.pcap4j.core.pcapLibName=libpcap.so -cp .:networkutils-all-0.2.jar PacketDump "udp"
+``
