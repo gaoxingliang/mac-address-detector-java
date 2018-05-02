@@ -9,6 +9,8 @@ import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * dump packets
@@ -22,9 +24,14 @@ public class PacketDump {
 
     private static final String LINE_SEPARATOR = "\n";
 
+    // packets count
     private static final String COUNT_KEY = "count";
     private static final int COUNT
-            = Integer.getInteger(COUNT_KEY, 1000);
+            = Integer.getInteger(COUNT_KEY, 1000000);
+
+    // how long to run in seconds
+    private static final String RUN_KEY = "run";
+    private static final int RUN = Integer.getInteger(RUN_KEY, 180);
 
     private static final String READ_TIMEOUT_KEY = "readTimeout";
     private static final int READ_TIMEOUT
@@ -57,6 +64,7 @@ public class PacketDump {
             System.out.println(String.format("\t%-20s -> %s", COUNT_KEY, "Packets numbers"));
             System.out.println(String.format("\t%-20s -> %s", READ_TIMEOUT_KEY, "Read timeout in ms"));
             System.out.println(String.format("\t%-20s -> %s", SNAPLEN_KEY, "SnapLen"));
+            System.out.println(String.format("\t%-20s -> %s", RUN_KEY, "How long in seconds to run"));
             return;
         }
 
@@ -65,6 +73,7 @@ public class PacketDump {
         System.out.println(READ_TIMEOUT_KEY + ": " + READ_TIMEOUT);
         System.out.println(SNAPLEN_KEY + ": " + SNAPLEN);
         System.out.println(TIMESTAMP_PRECISION_NANO_KEY + ": " + TIMESTAMP_PRECISION_NANO);
+        System.out.println(RUN_KEY + ": " + RUN);
         System.out.println("\n");
 
 
@@ -114,24 +123,53 @@ public class PacketDump {
             } catch (IOException e) {}
         }));
 
-        int num = 0;
-        PcapDumper dumper = handle.dumpOpen(PCAP_FILE);
-        while (true) {
-            Packet packet = handle.getNextPacket();
-            if (packet == null) {
-                continue;
-            }
-            else {
-                dumper.dump(packet, handle.getTimestamp());
-                num++;
-                if (num >= COUNT) {
-                    break;
+        CountDownLatch latch = new CountDownLatch(1);
+        Thread dumpThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                PcapDumper dumper = null;
+                int num = 0;
+                try {
+                    dumper = handle.dumpOpen(PCAP_FILE);
+                    while (!Thread.interrupted()) {
+                        Packet packet = handle.getNextPacket();
+                        if (packet == null) {
+                            continue;
+                        }
+                        else {
+                            dumper.dump(packet, handle.getTimestamp());
+                            num++;
+                            if (num >= COUNT) {
+                                break;
+                            }
+                        }
+                    }
+                }
+                catch(Exception e) {
+                    e.printStackTrace();
+                }
+                finally {
+                    if (dumper != null) {
+                        try {
+                            dumper.close();
+                        } catch (Exception e){}
+                    }
+                    try {
+                        handle.close();
+                    } catch (Exception e){}
+                    latch.countDown();
                 }
             }
+        });
+        dumpThread.start();
+        try {
+            latch.await(RUN, TimeUnit.SECONDS);
         }
-
-        dumper.close();
-        handle.close();
+        catch (InterruptedException e) {
+        }
+        finally {
+            dumpThread.interrupt();
+        }
 
     }
 
