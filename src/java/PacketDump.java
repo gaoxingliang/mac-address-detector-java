@@ -11,6 +11,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * dump packets
@@ -27,11 +28,19 @@ public class PacketDump {
     // packets count
     private static final String COUNT_KEY = "count";
     private static final int COUNT
-            = Integer.getInteger(COUNT_KEY, 1000000);
+            = Integer.getInteger(COUNT_KEY, Integer.MAX_VALUE);
+
+    // run in quiet mode
+    private static final String QUIET_KEY = "quiet";
+    private static final boolean QUIET = Boolean.getBoolean(QUIET_KEY); // default is false
+
+    // interface
+    private static final String INTF_KEY = "intf";
+    private static final String INTF = System.getProperty(INTF_KEY, "");
 
     // how long to run in seconds
     private static final String RUN_KEY = "run";
-    private static final int RUN = Integer.getInteger(RUN_KEY, 180);
+    private static final int RUN = Integer.getInteger(RUN_KEY, 120);
 
     private static final String READ_TIMEOUT_KEY = "readTimeout";
     private static final int READ_TIMEOUT
@@ -61,31 +70,44 @@ public class PacketDump {
             System.out.println("You Should set the filter expression as the first argument");
             System.out.println("The filter expression is same with the capture filter in the Wireshark or tcpdump");
             System.out.println("You can set other attributes as -D:");
-            System.out.println(String.format("\t%-20s -> %s", COUNT_KEY, "Packets numbers"));
+            System.out.println(String.format("\t%-20s -> %s", COUNT_KEY, "Packets numbers. Not supported Anymore. use -Drun. "));
             System.out.println(String.format("\t%-20s -> %s", READ_TIMEOUT_KEY, "Read timeout in ms"));
             System.out.println(String.format("\t%-20s -> %s", SNAPLEN_KEY, "SnapLen"));
             System.out.println(String.format("\t%-20s -> %s", RUN_KEY, "How long in seconds to run"));
+            System.out.println(String.format("\t%-20s -> %s", QUIET_KEY, "Run in quiet mode? if it's true, you should set the - " + INTF_KEY));
+            System.out.println(String.format("\t%-20s -> %s", INTF_KEY, "Set the network interface"));
+
             return;
         }
 
 
-        System.out.println(COUNT_KEY + ": " + COUNT);
         System.out.println(READ_TIMEOUT_KEY + ": " + READ_TIMEOUT);
         System.out.println(SNAPLEN_KEY + ": " + SNAPLEN);
         System.out.println(TIMESTAMP_PRECISION_NANO_KEY + ": " + TIMESTAMP_PRECISION_NANO);
         System.out.println(RUN_KEY + ": " + RUN);
+        System.out.println(QUIET_KEY + ": " + QUIET);
+        System.out.println(INTF_KEY + ": " + INTF);
         System.out.println("\n");
 
-
         // select the nifs
-
         PcapNetworkInterface nif;
-        try {
-            nif = _selectNif();
+
+        if (QUIET) {
+            nif = _getNifByName(INTF);
         }
-        catch (Exception e) {
-            e.printStackTrace();
-            return;
+        else {
+            if (INTF.isEmpty()) {
+                try {
+                    nif = _selectNif();
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                    return;
+                }
+            }
+            else {
+                nif = _getNifByName(INTF);
+            }
         }
 
         if (nif == null) {
@@ -124,6 +146,7 @@ public class PacketDump {
         }));
 
         CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<PcapDumper> dumperAtomicReference = new AtomicReference<>();
         Thread dumpThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -131,6 +154,7 @@ public class PacketDump {
                 int num = 0;
                 try {
                     dumper = handle.dumpOpen(PCAP_FILE);
+                    dumperAtomicReference.set(dumper);
                     while (!Thread.interrupted()) {
                         Packet packet = handle.getNextPacket();
                         if (packet == null) {
@@ -169,49 +193,24 @@ public class PacketDump {
         }
         finally {
             dumpThread.interrupt();
+            PcapDumper dumper = dumperAtomicReference.get();
+            if (dumper != null) {
+                try {
+                    dumper.close();
+                } catch (Exception e){}
+            }
+            try {
+                handle.close();
+            } catch (Exception e){}
         }
 
     }
 
 
     private static PcapNetworkInterface _selectNif() throws Exception {
-        List<PcapNetworkInterface> allDevs = null;
-        try {
-            allDevs = Pcaps.findAllDevs();
-        }
-        catch (PcapNativeException e) {
-            throw new IOException(e.getMessage());
-        }
-
-        if (allDevs == null || allDevs.isEmpty()) {
-            throw new IOException("No NIF found, is the libpcap successfully set/installed?");
-        }
-        StringBuilder sb = new StringBuilder(200);
+        List<PcapNetworkInterface> allDevs = _getAllNifs();
+        _listAllNifs();
         int nifIdx = 0;
-        for (PcapNetworkInterface nif : allDevs) {
-            sb.append("NIF[").append(nifIdx).append("]: ")
-                    .append(nif.getName()).append(LINE_SEPARATOR);
-
-            if (nif.getDescription() != null) {
-                sb.append("      : description: ")
-                        .append(nif.getDescription()).append(LINE_SEPARATOR);
-            }
-
-            for (LinkLayerAddress addr : nif.getLinkLayerAddresses()) {
-                sb.append("      : link layer address: ")
-                        .append(addr).append(LINE_SEPARATOR);
-            }
-
-            for (PcapAddress addr : nif.getAddresses()) {
-                sb.append("      : address: ")
-                        .append(addr.getAddress()).append(LINE_SEPARATOR);
-            }
-            sb.append(LINE_SEPARATOR).append(LINE_SEPARATOR);
-            nifIdx++;
-        }
-        sb.append(LINE_SEPARATOR);
-        System.out.println(sb.toString());
-
         while (true) {
             write(String.format("Select a device number ( 0 - %d) to capture packets, or enter 'q' to quit > ", allDevs.size() - 1));
             String input;
@@ -260,6 +259,63 @@ public class PacketDump {
         BufferedReader reader
                 = new BufferedReader(new InputStreamReader(System.in));
         return reader.readLine();
+    }
+
+    private static List<PcapNetworkInterface> _getAllNifs() throws IOException {
+        List<PcapNetworkInterface> allDevs = null;
+        try {
+            allDevs = Pcaps.findAllDevs();
+        }
+        catch (PcapNativeException e) {
+            throw new IOException(e.getMessage());
+        }
+
+        if (allDevs == null || allDevs.isEmpty()) {
+            throw new IOException("No NIF found, is the libpcap successfully set/installed?");
+        }
+        return allDevs;
+    }
+
+    private static PcapNetworkInterface _getNifByName(String name) throws IOException {
+        StringBuilder allNames = new StringBuilder();
+
+        for (PcapNetworkInterface i : _getAllNifs()) {
+            allNames.append(i.getName()).append(";");
+            if (i.getName().equals(name)) {
+                return i;
+            }
+        }
+        _listAllNifs();
+        throw new IllegalArgumentException("Please choose one interface from above names. Unknown interface - " + name);
+    }
+
+    private static void _listAllNifs() throws IOException {
+        List<PcapNetworkInterface> allDevs = _getAllNifs();
+        StringBuilder sb = new StringBuilder();
+        int nifIdx = 0;
+        for (PcapNetworkInterface nif : allDevs) {
+            sb.append("NIF[").append(nifIdx).append("]: ")
+                    .append(nif.getName()).append(LINE_SEPARATOR);
+
+            if (nif.getDescription() != null) {
+                sb.append("      : description: ")
+                        .append(nif.getDescription()).append(LINE_SEPARATOR);
+            }
+
+            for (LinkLayerAddress addr : nif.getLinkLayerAddresses()) {
+                sb.append("      : link layer address: ")
+                        .append(addr).append(LINE_SEPARATOR);
+            }
+
+            for (PcapAddress addr : nif.getAddresses()) {
+                sb.append("      : address: ")
+                        .append(addr.getAddress()).append(LINE_SEPARATOR);
+            }
+            sb.append(LINE_SEPARATOR).append(LINE_SEPARATOR);
+            nifIdx++;
+        }
+        sb.append(LINE_SEPARATOR);
+        System.out.println(sb.toString());
     }
 
 }

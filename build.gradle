@@ -24,9 +24,9 @@ targetCompatibility = JavaVersion.VERSION_1_8
 buildscript {
     ext {
         MODULE                      = "networkutils"
-        MAVEN_GROUP_ID              = "com.logicmonitor.macaddressdetector"
+        MAVEN_GROUP_ID              = "com.logicmonitor.goodutils"
         MAVEN_ARTIFACT_ID           = "networkutils"
-        MAVEN_VERSION               = "0.2"
+        MAVEN_VERSION               = "0.3"
     }
 
     repositories {
