@@ -87,6 +87,7 @@ public class PacketDump {
         System.out.println(RUN_KEY + ": " + RUN);
         System.out.println(QUIET_KEY + ": " + QUIET);
         System.out.println(INTF_KEY + ": " + INTF);
+        System.out.println("Filter is " + filter);
         System.out.println("\n");
 
         // select the nifs
