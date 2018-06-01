@@ -64,21 +64,33 @@ public class PacketDump {
     private PacketDump() {
     }
 
+    static void usage() {
+        System.out.println("============Usage=============");
+        System.out.println("You can set other attributes as -D:");
+        System.out.println(String.format("\t%-20s -> %s", COUNT_KEY, "Packets numbers. Not supported Anymore. use -Drun. "));
+        System.out.println(String.format("\t%-20s -> %s", READ_TIMEOUT_KEY, "Read timeout in ms"));
+        System.out.println(String.format("\t%-20s -> %s", SNAPLEN_KEY, "SnapLen"));
+        System.out.println(String.format("\t%-20s -> %s", RUN_KEY, "How long in seconds to run"));
+        System.out.println(String.format("\t%-20s -> %s", QUIET_KEY, "Run in quiet mode? if it's true, you should set the - " + INTF_KEY));
+        System.out.println(String.format("\t%-20s -> %s", INTF_KEY, "Set the network interface"));
+        System.out.println(String.format("\t%-20s -> %s", PCAP_FILE_KEY, "Set the output file path"));
+        System.out.println("============Usage=============\n\n");
+    }
     public static void main(String[] args) throws PcapNativeException, NotOpenException, IOException {
         String filter = args.length != 0 ? args[0] : "";
         if (filter.isEmpty()) {
             System.out.println("You Should set the filter expression as the first argument");
             System.out.println("The filter expression is same with the capture filter in the Wireshark or tcpdump");
-            System.out.println("You can set other attributes as -D:");
-            System.out.println(String.format("\t%-20s -> %s", COUNT_KEY, "Packets numbers. Not supported Anymore. use -Drun. "));
-            System.out.println(String.format("\t%-20s -> %s", READ_TIMEOUT_KEY, "Read timeout in ms"));
-            System.out.println(String.format("\t%-20s -> %s", SNAPLEN_KEY, "SnapLen"));
-            System.out.println(String.format("\t%-20s -> %s", RUN_KEY, "How long in seconds to run"));
-            System.out.println(String.format("\t%-20s -> %s", QUIET_KEY, "Run in quiet mode? if it's true, you should set the - " + INTF_KEY));
-            System.out.println(String.format("\t%-20s -> %s", INTF_KEY, "Set the network interface"));
-
+            usage();
             return;
         }
+
+        if (System.getProperty("quiet") == null) {
+            System.out.println("Must set whether this is in a quiet mode. use -Dquiet=true|false");
+            usage();
+            return;
+        }
+
 
 
         System.out.println(READ_TIMEOUT_KEY + ": " + READ_TIMEOUT);
