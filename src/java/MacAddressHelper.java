@@ -403,12 +403,23 @@ public class MacAddressHelper {
         byte[] inputIpInBytes = address.getAddress();
         for (PcapNetworkInterface currentInterface : _localPcapNetworkInterfaces) {
             List<PcapAddress> addresses = currentInterface.getAddresses();
+
             if (addresses != null) {
                 for (PcapAddress ipAddress : addresses) {
                     // make sure the address should be same type, all ipv4 or all ipv6
                     if (!_isSameTypeAddress(address, ipAddress.getAddress())) {
                         continue;
                     }
+
+                    // we also need to make sure they are under same netmask
+                    // because in some cases, a router may return an external arp protocol
+                    // for v4
+                    InetAddress maskAddr = ipAddress.getNetmask();
+                    if (address instanceof Inet4Address && maskAddr != null
+                            && !_isUnderSameSubNet(address, ipAddress.getAddress(), maskAddr)) {
+                        continue;
+                    }
+
                     byte[] ipInBytes = ipAddress.getAddress().getAddress();
                     int currentSimiliarBytes = _similarBytes(inputIpInBytes, ipInBytes);
                     if (currentSimiliarBytes > similiarBytes) {
@@ -468,6 +479,20 @@ public class MacAddressHelper {
         for (i = 0; i < n && b1[i] == b2[i]; i++) {
         }
         return i;
+    }
+
+    static boolean _isUnderSameSubNet(InetAddress testAddr, InetAddress currentAddr, InetAddress maskAddr) {
+        byte [] test = testAddr.getAddress();
+        byte [] current = currentAddr.getAddress();
+        byte [] mask = maskAddr.getAddress();
+        boolean equal = true;
+        for (int i =0; i < test.length; i++) {
+            if ((test[i] & mask[i]) != (current[i] & mask[i])) {
+                equal = false;
+                break;
+            }
+        }
+        return equal;
     }
 
     /**

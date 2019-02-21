@@ -2,6 +2,7 @@
 import org.pcap4j.util.MacAddress;
 
 import java.net.Inet4Address;
+import java.net.InetAddress;
 
 /**
  * simple demo
@@ -15,6 +16,14 @@ public class Test {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+        InetAddress addr1 = InetAddress.getByName("172.16.14.13");
+        InetAddress addr2 = InetAddress.getByName("172.16.14.12");
+        InetAddress addr3 = InetAddress.getByName("172.16.15.12");
+        InetAddress mask = InetAddress.getByName("255.255.255.0");
+
+        System.out.println(MacAddressHelper._isUnderSameSubNet(addr1, addr2, mask));
+        System.out.println(MacAddressHelper._isUnderSameSubNet(addr1, addr3, mask));
+
         // list all interfaces....
         MacAddressHelper.getInstance().getLocalInterfaces().forEach(l -> System.out.println("Found interface " + l));
         if (args.length > 0) {
