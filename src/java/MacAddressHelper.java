@@ -413,9 +413,9 @@ public class MacAddressHelper {
 
                     // we also need to make sure they are under same netmask
                     // because in some cases, a router may return an external arp protocol
-                    // for v4
+                    // this worked for ipv4 and ipv6
                     InetAddress maskAddr = ipAddress.getNetmask();
-                    if (address instanceof Inet4Address && maskAddr != null
+                    if (maskAddr != null
                             && !_isUnderSameSubNet(address, ipAddress.getAddress(), maskAddr)) {
                         continue;
                     }

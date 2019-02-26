@@ -24,6 +24,18 @@ public class Test {
         System.out.println(MacAddressHelper._isUnderSameSubNet(addr1, addr2, mask));
         System.out.println(MacAddressHelper._isUnderSameSubNet(addr1, addr3, mask));
 
+        //address: [/fe80:0:0:0:1016:168a:afda:7c7b] netmask: [/ffff:ffff:ffff:ffff:0:0:0:0] broadcastAddr: [null] dstAddr [null]
+        InetAddress addr1v6 = InetAddress.getByName("fe80:0:0:0:1016:168a:afda:7c7b");
+        InetAddress maskv6 = InetAddress.getByName("ffff:ffff:ffff:ffff:0:0:0:0");
+        InetAddress addr2v6 = InetAddress.getByName("fe80:0:0:0:1016:168a:afda:7c7e");
+        InetAddress addr3v6 = InetAddress.getByName("fe80:0:0:1:1016:168a:afda:7c7e");
+        System.out.println(MacAddressHelper._isUnderSameSubNet(addr1v6, addr2v6, maskv6));
+        System.out.println(MacAddressHelper._isUnderSameSubNet(addr3v6, addr2v6, maskv6));
+
+
+        // address: [/fe80:0:0:0:1016:168a:afda:7c7b] netmask: [/ffff:ffff:ffff:ffff:0:0:0:0] broadcastAddr: [null] dstAddr [null]
+
+
         // list all interfaces....
         MacAddressHelper.getInstance().getLocalInterfaces().forEach(l -> System.out.println("Found interface " + l));
         if (args.length > 0) {
