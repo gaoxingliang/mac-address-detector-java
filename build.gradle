@@ -30,13 +30,7 @@ buildscript {
     }
 
     repositories {
-        maven {
-            credentials {
-                username MAVEN_REPO_USERNAME
-                password MAVEN_REPO_PASSWORD
-            }
-            url REPOSITORRY_URL
-        }
+        mavenCentral()
     }
 
     configurations.all {
@@ -46,13 +40,7 @@ buildscript {
 
 // Access maven center.
 repositories {
-    maven {
-        credentials {
-            username MAVEN_REPO_USERNAME
-            password MAVEN_REPO_PASSWORD
-        }
-        url REPOSITORRY_URL
-    }
+    mavenCentral()
 }
 
 
