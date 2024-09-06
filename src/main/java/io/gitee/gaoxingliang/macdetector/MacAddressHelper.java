@@ -1,3 +1,4 @@
+package io.gitee.gaoxingliang.macdetector;
 
 import org.pcap4j.core.BpfProgram;
 import org.pcap4j.core.NotOpenException;
@@ -45,6 +46,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.*;
 
 /**
  * Detect a mac address
@@ -58,6 +60,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * Created by edward.gao on 10/09/2017.
  */
 public class MacAddressHelper {
+
+    private static Logger logger = Logger.getLogger(MacAddressHelper.class.getCanonicalName());
 
     private static final String _KEY_READTIMEOUT_IN_MILLS = "macaddress.readTimeout.mills";
     private static final String _KEY_RECEIVETIMEOUT_IN_MILLS = "macaddress.receiveTimeout.mills";
@@ -93,16 +97,6 @@ public class MacAddressHelper {
         // for windows, we need Packet.dll and wpcap.dll, and wpcap required Packet.dll so the filename is WITHOUT version
         String pcapLibKey = "org.pcap4j.core.pcapLibName";
         String packetDllKey = "org.pcap4j.core.packetLibName";
-//        if (Environment.isLinux()) {
-//            System.setProperty(pcapLibKey, Paths.get(".", "lib", Environment.is64BitOS() ? "libpcap64.so" : "libpcap.so")
-//                    .toString());
-//        }
-//        else {
-//            System.setProperty(packetDllKey, Paths.get(Environment.root, "lib", "Packet.dll").toString());
-//            System.setProperty(pcapLibKey, Paths.get(Environment.root, "lib", "wpcap.dll").toString());
-//        }
-//        System.out.println(String.format("Pcap related conf set %s=%s, (for windows) %s=%s", pcapLibKey, System.getProperty(pcapLibKey),
-//                packetDllKey, System.getProperty(packetDllKey)));
     }
 
     private MacAddressHelper() {
@@ -122,7 +116,7 @@ public class MacAddressHelper {
                 while (addresses.hasMoreElements()) {
                     InetAddress currentIp = addresses.nextElement();
                     if (mac == null) {
-                        System.out.println("Can't find mac address for local ip=" + currentIp);
+                        logger.warning("Can't find mac address for local ip=" + currentIp);
                         _localAddresse2MacAddress.put(currentIp, null);
                     }
                     else {
@@ -130,8 +124,9 @@ public class MacAddressHelper {
                         // the length is NOT 6 bytes
                         if (mac.length != MacAddress.SIZE_IN_BYTES) {
                             _localAddresse2MacAddress.put(currentIp, null);
-                            System.out.println(String.format("Found invalid mac address ip=%s,mac=%s", currentIp, ByteArrays.toHexString(mac,
-                                    ":")));
+                            logger.warning(String.format("Found invalid mac address ip=%s,mac=%s",
+                                    currentIp, ByteArrays.toHexString(mac, ":"))
+                            );
                         }
                         else {
                             _localAddresse2MacAddress.put(currentIp, MacAddress.getByAddress(mac));
@@ -140,7 +135,7 @@ public class MacAddressHelper {
 
                 }
             }
-            System.out.println(String.format("Mac Address helper init done localips=%d, threadPool=%d, readTimeout(ms)=%d, waitResponse(ms)" +
+            logger.info(String.format("Mac Address helper init done localips=%d, threadPool=%d, readTimeout(ms)=%d, waitResponse(ms)" +
                             "=%d, waitReceiveTaskStart(ms)=%d",
                     _localAddresse2MacAddress.size(), _threadCount,
                     _readTimeoutInMillSeconds, _waitResponseTimeoutInMillSeconds, _waitReceiveTaskStartRunningInSeconds));
@@ -153,6 +148,11 @@ public class MacAddressHelper {
 
     public static MacAddressHelper getInstance() {
         return MacAddressHelperHolder._INSTANCE;
+    }
+
+
+    public boolean successInit() {
+        return _initted;
     }
 
     public List<PcapNetworkInterface> getLocalInterfaces() {
@@ -264,7 +264,8 @@ public class MacAddressHelper {
                 receiveFuture.get(_waitResponseTimeoutInMillSeconds, TimeUnit.MILLISECONDS);
             }
             catch (Exception e) {
-                e.printStackTrace();
+                logger.severe("Fail to get the mac addr " + e);
+                return null;
             }
             return remoteMacAddress.get();
         }

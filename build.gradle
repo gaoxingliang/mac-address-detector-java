@@ -1,153 +1,113 @@
-///////////////////////////////////////////////////////////////////////////////////////
-//
-//                 Gradle Template Summary
-//
-//   Frequently Used Command:
-//      [ gradle ]          Default task. same with 'gradle build'.
-//      [ gradle build ]    Compile/test your code, and create a war file containing your main classes and resources.
-//      [ gradle release ]  Release war file, generate branch info and make a tag
-//
-//
-////////////////////////////////////////////////////////////////////////////////////////
-
-//Definition apply plugin
-apply plugin: 'idea'
-apply plugin: 'java'
-apply plugin: 'maven'
-
-//--------------------------------- Based setting  for current project ---------------------------------
-
-// Definition sourceCompatibility and targetCompatibility.
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
-
-buildscript {
-    ext {
-        MODULE                      = "networkutils"
-        MAVEN_GROUP_ID              = "com.logicmonitor.goodutils"
-        MAVEN_ARTIFACT_ID           = "networkutils"
-        MAVEN_VERSION               = "0.3"
-    }
-
-    repositories {
-        mavenCentral()
-    }
-
-    configurations.all {
-        resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
-    }
+plugins {
+    id 'java'
+    id 'java-library'
+    id 'maven-publish'
+    id 'org.jreleaser' version '1.13.1'
 }
 
-// Access maven center.
+compileJava.options.encoding = "UTF-8"
+compileTestJava.options.encoding = "UTF-8"
+
+apply plugin: 'maven-publish'
+
+group 'io.gitee.gaoxingliang:mac-address-detector-java'
+version '0.0.1'
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
 repositories {
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenLocal()
     mavenCentral()
 }
 
-
-// Definition source which should include.
-sourceSets {
-    main {
-        java {
-            srcDir 'src/java'
-        }
-        resources {
-            srcDir 'src/resources'
-        }
-    }
-
-    test {
-        java {
-            srcDir 'test/java'
-            //srcDir 'test/component'
-        }
-    }
+java {
+    withJavadocJar()
+    withSourcesJar()
 }
-
-
-//--------------------------------- Dependencies definition ---------------------------------
 
 dependencies {
-
-
-    // https://mvnrepository.com/artifact/org.pcap4j/pcap4j-core
-    compile group: 'org.pcap4j', name: 'pcap4j-core', version: '1.7.3'
-
-    // https://mvnrepository.com/artifact/org.pcap4j/pcap4j-packetfactory-static
-    compile group: 'org.pcap4j', name: 'pcap4j-packetfactory-static', version: '1.7.3'
-
-    compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.25'
-
-
-    runtime(
-    )
-
-
+    implementation group: 'org.pcap4j', name: 'pcap4j-core', version: '1.7.3'
+    implementation group: 'org.pcap4j', name: 'pcap4j-packetfactory-static', version: '1.7.3'
 }
 
-// Define manifest
-ext.sharedManifest = manifest {
-    attributes(
-            'Modlue': "${MODULE}",
-            'Implementation-Title': "${project.name}",
-            'Built-Date': new Date().getDateTimeString(),
-            'Built-With': "gradle-${project.getGradle().getGradleVersion()}, groovy-${GroovySystem.getVersion()}",
-            'Created-By': 'Java ' + System.getProperty('java.version') + ' (' + System.getProperty('java.vendor') + ')'
-    )
-}
-
-
-//--------------------------------- Specific Tasks ---------------------------------
-/*
-*  Override jar task addition attributes
-*/
-jar {
-    manifest = project.manifest {
-        from sharedManifest
-    }
-    archiveName = MAVEN_ARTIFACT_ID + '-' + MAVEN_VERSION + ".jar"
-}
-
-defaultTasks 'clean','test','jar'
-
-task build (overwrite: true ) {
-    dependsOn = ['clean','test','jar']
-
-    test.mustRunAfter clean
-    jar.mustRunAfter test
-}
-
-task devbuild {
-    dependsOn = ['clean','jar']
-
-    jar.mustRunAfter clean
-}
-
-//Define the test task
 test {
-    ignoreFailures = true
-    reports.html.destination = file("$buildDir/test-reports")
+    useJUnitPlatform()
 }
 
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId =  "io.gitee.gaoxingliang"
+            artifactId = 'mac-address-detector-java'
 
+            from components.java
 
-// build jar
-task fatjar(type: Jar) {
-    baseName = MAVEN_ARTIFACT_ID + '-all-' + MAVEN_VERSION
+            pom {
+                name = 'mac-address-detector-java'
+                description = 'Use pcap4j to detect a mac address of remote host'
+                url = 'https://github.com/gaoxingliang/mac-address-detector-java'
+                inceptionYear = '2024'
+                licenses {
+                    license {
+                        name = 'Apache-2.0'
+                        url = 'https://spdx.org/licenses/Apache-2.0.html'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'gaoxingliang'
+                        name = 'gaoxingliang'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/gaoxingliang/mac-address-detector-java.git'
+                    developerConnection = 'scm:git:ssh://github.com/gaoxingliang/mac-address-detector-java.git'
+                    url = 'https://github.com/gaoxingliang/mac-address-detector-java'
+                }
+            }
+        }
+    }
 
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
-    with jar
-    // add this to avoid the error -java.lang.SecurityException: Invalid signature file digest for Manifest main attributes
-    exclude 'META-INF/*.RSA', 'META-INF/*.SF','META-INF/*.DSA'
+    repositories {
+        maven {
+            url = layout.projectDirectory.dir('build/staging-deploy')
+        }
+    }
 }
 
-task upload {
-    dependsOn = ['clean','uploadArchives']
-    uploadArchives.mustRunAfter clean
+jreleaser {
+    signing {
+        active = 'ALWAYS'
+        armored = true
+        mode = 'FILE'
+        publicKey = '/Users/edward/.jreleaser/public.pgp'
+        secretKey = '/Users/edward/.jreleaser/private.pgp'
+    }
+    deploy {
+        maven {
+//            nexus2 {
+//                'maven-central' {
+//                    active = 'ALWAYS'
+//                    url = 'https://s01.oss.sonatype.org/service/local'
+//                    snapshotUrl = 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
+//                    closeRepository = true
+//                    releaseRepository = true
+//                    stagingRepository('build/staging-deploy'
+//                }
+//            }
+            mavenCentral {
+                sonatype {
+                    active = 'ALWAYS'
+                    url = 'https://central.sonatype.com/api/v1/publisher'
+                    stagingRepository('build/staging-deploy')
+                }
+            }
+        }
+    }
 }
-
-
-task createJavaProject << {
-    sourceSets*.java.srcDirs*.each { it.mkdirs() }
-    sourceSets*.resources.srcDirs*.each { it.mkdirs()}
-}
-

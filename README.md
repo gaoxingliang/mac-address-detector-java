@@ -14,27 +14,48 @@ and for a IPv6 address, I used ndp (neighbor discovery) protocol related functio
 1. pcap4j 1.7.3<br>
 2. libpcap. (ready for use version files has been uploaded into libpcapfiles)
 
-# How to build
-## Build networkutils-*.jar
-1. gradle build  (no dep jars included)
-2. gradle fatjar (recommended, dep jars included)
+# how to use
+## 1. import this dependency
+  
+gradle:
+```shell
+implementation group: 'io.gitee.gaoxingliang', name: 'mac-address-detector-java', version: '0.0.1'
+```
 
-## Run on linux
+mvn:
+```xml
+<dependency>
+    <groupId>io.gitee.gaoxingliang</groupId>
+    <artifactId>mac-address-detector-java</artifactId>
+    <version>0.0.1</version>
+</dependency>
+```
+and use it:
+
+```java
+MacAddress address = MacAddressHelper.getInstance()
+        .getMacAddress(Inet4Address.getByName("192.168.110.100"));
+```
+
+## 2.1 Use it on linux
+the pre-built dep files are under `libpcapfiles` directory. <br>
 on linux, you can load the libpcap directly without install anything
 
 ``
-java -Dorg.pcap4j.core.pcapLibName=libpcap.so -cp .:networkutils-all-0.2.jar Test 192.168.170.149
+java -Dorg.pcap4j.core.pcapLibName=libpcap.so YourProgram
 ``
 
-## Run on windows
+## 2.2 Use it on windows
 On windows, the npcap is required to be installed. (no reboot required)
 
 ``
-java -Dorg.pcap4j.core.pcapLibName=wpcap.dll -Dorg.pcap4j.core.packetLibName=Packet.dll -cp .;networkutils-all-0.2.jar Test 192.168.170.149
+java -Dorg.pcap4j.core.pcapLibName=wpcap.dll -Dorg.pcap4j.core.packetLibName=Packet.dll YourProgram
 ``
 
+# Changes 
+## 09-06-2024
 
-# Updates 01-24-2018
+## 01-24-2018
 Add a func to do packet dump by using pcap4j.
 After build the jar, call the main class PacketDump.
 ``
