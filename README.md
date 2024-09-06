@@ -30,7 +30,7 @@ mvn:
     <version>0.0.1</version>
 </dependency>
 ```
-and use it:
+and use it, see full [Test](./src/test/java/io/gitee/gaoxingliang/macdetector/Test.java):
 
 ```java
 MacAddress address = MacAddressHelper.getInstance()
@@ -54,7 +54,7 @@ java -Dorg.pcap4j.core.pcapLibName=wpcap.dll -Dorg.pcap4j.core.packetLibName=Pac
 
 # Changes 
 ## 09-06-2024
-
+release the lib to mvn repo. and renaming the package.
 ## 01-24-2018
 Add a func to do packet dump by using pcap4j.
 After build the jar, call the main class PacketDump.
